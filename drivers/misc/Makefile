@@ -9,6 +9,12 @@ obj-$(CONFIG_AD525X_DPOT_SPI)	+= ad525x_dpot-spi.o
 obj-$(CONFIG_INTEL_MID_PTI)	+= pti.o
 obj-$(CONFIG_ATMEL_PWM)		+= atmel_pwm.o
 obj-$(CONFIG_ATMEL_SSC)		+= atmel-ssc.o
+#################################################NUBIA TYPEC IC START
+obj-$(CONFIG_FUSB301_USBTYPE_C)	+= fusb301.o
+obj-$(CONFIG_PTN5150_USBTYPE_C)	+= ptn5150.o
+obj-$(CONFIG_TUSB320_USBTYPE_C)	+= tusb320.o
+obj-$(CONFIG_PI5U_USBTYPE_C)	+= pi5u.o
+#################################################NUBIA TYPEC IC END
 obj-$(CONFIG_ATMEL_TCLIB)	+= atmel_tclib.o
 obj-$(CONFIG_BMP085)		+= bmp085.o
 obj-$(CONFIG_BMP085_I2C)	+= bmp085-i2c.o
