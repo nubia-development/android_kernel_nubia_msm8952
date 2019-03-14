@@ -223,6 +223,16 @@ config SND_SOC_CS42L52
 config SND_SOC_CS42L73
 	tristate
 
+config ZTEMT_AUDIO_MBHC
+     bool "the flag of modifing the mbhc"
+     help
+	 help to know the difference between ours and the default
+
+config ZTEMT_EURO_HEADSET_SUPPORT
+     bool "the flag of euro headset support"
+     default n
+     help
+	 help to know the difference between ours and the default
 # Cirrus Logic CS4270 Codec
 config SND_SOC_CS4270
 	tristate
