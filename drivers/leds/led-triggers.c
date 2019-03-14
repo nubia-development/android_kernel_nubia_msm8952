@@ -313,11 +313,11 @@ void led_trigger_register_simple(const char *name, struct led_trigger **tp)
 		if (err < 0) {
 			kfree(trig);
 			trig = NULL;
-			pr_warn("LED trigger %s failed to register (%d)\n",
+			pr_err("LED trigger %s failed to register (%d)\n",
 				name, err);
 		}
 	} else {
-		pr_warn("LED trigger %s failed to register (no memory)\n",
+		pr_err("LED trigger %s failed to register (no memory)\n",
 			name);
 	}
 	*tp = trig;
