@@ -652,7 +652,7 @@ static ssize_t mdss_dsi_cmd_state_read(struct file *file, char __user *buf,
 	if (blen < 0)
 		return 0;
 
-	if (copy_to_user(buf, buffer, min(count, (size_t)blen+1)))
+	if (copy_to_user(buf, buffer, blen))
 		return -EFAULT;
 
 	*ppos += blen;
