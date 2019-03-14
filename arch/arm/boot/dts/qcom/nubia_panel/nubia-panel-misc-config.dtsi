@@ -1,0 +1,22 @@
+&nubia_dsi_sharp_nt35595_1080_5p0_cmd {
+	qcom,cont-splash-enabled;
+	qcom,panel-supply-entries = <&dsi_panel_pwr_supply>;
+
+    //LP11
+    qcom,mdss-dsi-lp11-init;
+    qcom,mdss-dsi-init-delay-us = <20000>;
+};
+
+&nubia_dsi_otm1901a_1080p_video {
+	qcom,mdss-dsi-lp11-init;
+	qcom,mdss-dsi-init-delay-us = <20000>;
+	qcom,cont-splash-enabled;
+	qcom,panel-supply-entries = <&dsi_panel_pwr_supply>;
+};
+
+&nubia_dsi_hx8399a_1080p_video {
+	qcom,mdss-dsi-lp11-init;
+	qcom,mdss-dsi-init-delay-us = <20000>;
+	qcom,cont-splash-enabled;
+	qcom,panel-supply-entries = <&dsi_panel_pwr_supply>;
+};
