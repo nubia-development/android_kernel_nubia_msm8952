@@ -12,6 +12,8 @@ menuconfig INPUT_TOUCHSCREEN
 if INPUT_TOUCHSCREEN
 
 source "drivers/input/touchscreen/synaptics_dsx/Kconfig"
+source "drivers/input/touchscreen/gt1x/Kconfig"
+source "drivers/input/touchscreen/cyttsp5/Kconfig"
 
 config TOUCHSCREEN_88PM860X
 	tristate "Marvell 88PM860x touchscreen"
@@ -955,15 +957,16 @@ config TOUCHSCREEN_FT5X06_GESTURE
 
          If unsure, say N.
 
-config TOUCHSCREEN_SYNAPTICS_DSX_FW_UPDATE_EXTRA_SYSFS
-	bool "Synaptics DSX firmware update extra sysfs attributes"
-	depends on TOUCHSCREEN_SYNAPTICS_DSX_FW_UPDATE
-	help
-	  Say Y here to enable support for extra sysfs attributes
-	  supporting firmware update in a development environment.
-	  This does not affect the core or other subsystem attributes.
+config TOUCHSCREEN_MSTAR21XX
+       tristate "mstar touchscreens"
+       depends on I2C
+       help
+         Say Y here if you have a mstar touchscreen.
 
-	  If unsure, say N.
+         If unsure, say N.
+
+         To compile this driver as a module, choose M here: the
+         module will be called msg21xx_ts.
 
 config TOUCHSCREEN_GEN_VKEYS
        tristate "Touchscreen Virtual Keys Driver"
