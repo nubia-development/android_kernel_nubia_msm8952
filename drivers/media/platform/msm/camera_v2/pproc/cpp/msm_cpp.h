@@ -1,4 +1,4 @@
-/* Copyright (c) 2013-2016, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2013-2015, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -19,10 +19,7 @@
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <media/v4l2-subdev.h>
-#include "msm_generic_buf_mgr.h"
 #include "msm_sd.h"
-#include "cam_soc_api.h"
-#include "cam_hw_ops.h"
 
 /* hw version info:
   31:28  Major version
@@ -66,8 +63,7 @@
 #define MSM_CPP_CMD_ERROR_REQUEST		0x9
 #define MSM_CPP_CMD_GET_STATUS			0xA
 #define MSM_CPP_CMD_GET_FW_VER			0xB
-#define MSM_CPP_CMD_GROUP_BUFFER_DUP	0x12
-#define MSM_CPP_CMD_GROUP_BUFFER	0xF
+#define MSM_CPP_CMD_GROUP_BUFFER		0x12
 
 #define MSM_CPP_MSG_ID_CMD          0x3E646D63
 #define MSM_CPP_MSG_ID_OK           0x0A0A4B4F
@@ -94,22 +90,7 @@
 #define MSM_CPP_TASKLETQ_SIZE		16
 #define MSM_CPP_TX_FIFO_LEVEL		16
 #define MSM_CPP_RX_FIFO_LEVEL		512
-
-enum cpp_vbif_error {
-	CPP_VBIF_ERROR_HANG,
-	CPP_VBIF_ERROR_MAX,
-};
-
-enum cpp_vbif_client {
-	VBIF_CLIENT_CPP,
-	VBIF_CLIENT_FD,
-	VBIF_CLIENT_MAX,
-};
-
-struct msm_cpp_vbif_data {
-	int (*err_handler[VBIF_CLIENT_MAX])(void *, uint32_t);
-	void *dev[VBIF_CLIENT_MAX];
-};
+#define MSM_CPP_GROUP_CMD_LEN		69
 
 struct cpp_subscribe_info {
 	struct v4l2_fh *vfh;
@@ -194,47 +175,26 @@ struct msm_cpp_work_t {
 	struct cpp_device *cpp_dev;
 };
 
-struct msm_cpp_payload_params {
-	uint32_t stripe_base;
-	uint32_t stripe_size;
-	uint32_t plane_base;
-	uint32_t plane_size;
-
-	/* offsets for stripe/plane pointers in payload */
-	uint32_t rd_pntr_off;
-	uint32_t wr_0_pntr_off;
-	uint32_t rd_ref_pntr_off;
-	uint32_t wr_ref_pntr_off;
-	uint32_t wr_0_meta_data_wr_pntr_off;
-	uint32_t fe_mmu_pf_ptr_off;
-	uint32_t ref_fe_mmu_pf_ptr_off;
-	uint32_t we_mmu_pf_ptr_off;
-	uint32_t dup_we_mmu_pf_ptr_off;
-	uint32_t ref_we_mmu_pf_ptr_off;
-	uint32_t set_group_buffer_len;
-	uint32_t dup_frame_indicator_off;
-};
-
 struct cpp_device {
 	struct platform_device *pdev;
 	struct msm_sd_subdev msm_sd;
 	struct v4l2_subdev subdev;
+	struct resource *mem;
 	struct resource *irq;
+	struct resource *io;
+	struct resource	*vbif_mem;
+	struct resource *vbif_io;
+	struct resource	*cpp_hw_mem;
 	void __iomem *vbif_base;
 	void __iomem *base;
 	void __iomem *cpp_hw_base;
-	void __iomem *camss_cpp_base;
 	struct clk **cpp_clk;
-	struct msm_cam_clk_info *clk_info;
-	size_t num_clks;
-	struct msm_cam_regulator *cpp_vdd;
-	int num_reg;
+	struct regulator *fs_cpp;
 	struct mutex mutex;
 	enum cpp_state state;
 	enum cpp_iommu_state iommu_state;
 	uint8_t is_firmware_loaded;
 	char *fw_name_bin;
-	const struct firmware *fw;
 	struct workqueue_struct *timer_wq;
 	struct msm_cpp_work_t *work;
 	uint32_t fw_version;
@@ -245,6 +205,8 @@ struct cpp_device {
 	int domain_num;
 	struct iommu_domain *domain;
 	struct device *iommu_ctx;
+	struct ion_client *client;
+	struct kref refcount;
 	uint32_t num_clk;
 	uint32_t min_clk_rate;
 
@@ -271,23 +233,24 @@ struct cpp_device {
 
 	struct msm_cpp_buff_queue_info_t *buff_queue;
 	uint32_t num_buffq;
-	struct msm_cam_buf_mgr_req_ops buf_mgr_ops;
+	struct v4l2_subdev *buf_mgr_subdev;
 
+	uint32_t rd_pntr;
+	uint32_t wr_0_pntr;
+	uint32_t wr_1_pntr;
+	uint32_t wr_2_pntr;
+	uint32_t wr_3_pntr;
+	uint32_t rd_ref_pntr;
+	uint32_t wr_ref_pntr;
+	uint32_t wr_0_meta_data_wr_pntr;
+	uint32_t wr_1_meta_data_wr_pntr;
+	uint32_t wr_2_meta_data_wr_pntr;
+	uint32_t wr_3_meta_data_wr_pntr;
+	uint32_t stripe_base;
+	uint32_t stripe_size;
+	uint32_t stripe_info_offset;
 	uint32_t bus_client;
 	uint32_t bus_idx;
 	uint32_t bus_master_flag;
-	struct msm_cpp_payload_params payload_params;
-	struct msm_cpp_vbif_data *vbif_data;
 };
-
-int msm_cpp_set_micro_clk(struct cpp_device *cpp_dev);
-int msm_update_freq_tbl(struct cpp_device *cpp_dev);
-int msm_cpp_get_clock_index(struct cpp_device *cpp_dev, const char *clk_name);
-long msm_cpp_set_core_clk(struct cpp_device *cpp_dev, long rate, int idx);
-void msm_cpp_fetch_dt_params(struct cpp_device *cpp_dev);
-int msm_cpp_read_payload_params_from_dt(struct cpp_device *cpp_dev);
-void msm_cpp_vbif_register_error_handler(void *dev,
-	enum cpp_vbif_client client,
-	int (*client_vbif_error_handler)(void *, uint32_t));
-
 #endif /* __MSM_CPP_H__ */

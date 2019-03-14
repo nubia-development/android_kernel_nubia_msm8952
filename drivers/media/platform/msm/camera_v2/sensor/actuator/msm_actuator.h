@@ -1,4 +1,4 @@
-/* Copyright (c) 2011-2016, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2011-2015, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -25,16 +25,17 @@
 #define DEFINE_MSM_MUTEX(mutexname) \
 	static struct mutex mutexname = __MUTEX_INITIALIZER(mutexname)
 
-#define	MSM_ACTUATOR_MAX_VREGS (10)
+#define	MSM_ACTUATOT_MAX_VREGS (10)
 #define	ACTUATOR_MAX_POLL_COUNT 10
+//ZTEMT: li.bin223 20150421 add for avoid kernel crash ----start
+#define	MSM_ACTUATOT_MAX_NAME (32)
+//ZTEMT: li.bin223 20150421 add for avoid kernel crash ----end
 
 struct msm_actuator_ctrl_t;
 
 enum msm_actuator_state_t {
-	ACT_ENABLE_STATE,
-	ACT_OPS_ACTIVE,
-	ACT_OPS_INACTIVE,
-	ACT_DISABLE_STATE,
+	ACTUATOR_POWER_DOWN,
+	ACTUATOR_POWER_UP,
 };
 
 struct msm_actuator_func_tbl {
@@ -45,9 +46,9 @@ struct msm_actuator_func_tbl {
 		struct msm_actuator_set_info_t *);
 	int32_t (*actuator_init_focus)(struct msm_actuator_ctrl_t *,
 		uint16_t, struct reg_settings_t *);
-	int32_t (*actuator_set_default_focus)(struct msm_actuator_ctrl_t *,
+	int32_t (*actuator_set_default_focus) (struct msm_actuator_ctrl_t *,
 			struct msm_actuator_move_params_t *);
-	int32_t (*actuator_move_focus)(struct msm_actuator_ctrl_t *,
+	int32_t (*actuator_move_focus) (struct msm_actuator_ctrl_t *,
 			struct msm_actuator_move_params_t *);
 	void (*actuator_parse_i2c_params)(struct msm_actuator_ctrl_t *,
 			int16_t, uint32_t, uint16_t);
@@ -68,7 +69,7 @@ struct msm_actuator {
 
 struct msm_actuator_vreg {
 	struct camera_vreg_t *cam_vreg;
-	void *data[MSM_ACTUATOR_MAX_VREGS];
+	void *data[MSM_ACTUATOT_MAX_VREGS];
 	int num_vreg;
 };
 
@@ -78,11 +79,13 @@ struct msm_actuator_ctrl_t {
 	struct platform_device *pdev;
 	struct msm_camera_i2c_client i2c_client;
 	enum msm_camera_device_type_t act_device_type;
+	uint16_t deinit_setting_size;
+	struct reg_settings_t *deinit_settings;
 	struct msm_sd_subdev msm_sd;
 	enum af_camera_name cam_name;
 	struct mutex *actuator_mutex;
 	struct msm_actuator_func_tbl *func_tbl;
-	enum msm_camera_i2c_data_type i2c_data_type;
+	enum msm_actuator_data_type i2c_data_type;
 	struct v4l2_subdev sdev;
 	struct v4l2_subdev_ops *act_v4l2_subdev_ops;
 
@@ -105,9 +108,9 @@ struct msm_actuator_ctrl_t {
 	struct msm_actuator_vreg vreg_cfg;
 	struct park_lens_data_t park_lens;
 	uint32_t max_code_size;
-	struct msm_camera_gpio_conf *gconf;
-	struct msm_pinctrl_info pinctrl_info;
-	uint8_t cam_pinctrl_status;
+	// ZTEMT: fuyipeng add for manual AF -----start
+	char act_name[MSM_ACTUATOT_MAX_NAME];
+	// ZTEMT: fuyipeng add for manual AF -----end
 };
 
 #endif
