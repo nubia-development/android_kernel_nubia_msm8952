@@ -31,6 +31,9 @@
 #include "mdss_dsi.h"
 #include "mdss_debug.h"
 #include "mdss_dba_utils.h"
+#ifdef CONFIG_NUBIA_LCD_DISP_PREFERENCE
+#include "nubia_disp_preference.h"
+#endif
 
 #define XO_CLK_RATE	19200000
 
@@ -2190,6 +2193,9 @@ static int mdss_dsi_event_handler(struct mdss_panel_data *pdata,
 		if (ctrl_pdata->on_cmds.link_state == DSI_HS_MODE)
 			rc = mdss_dsi_unblank(pdata);
 		pdata->panel_info.esd_rdy = true;
+#ifdef CONFIG_NUBIA_LCD_DISP_PREFERENCE
+		nubia_disp_preference();
+#endif
 		break;
 	case MDSS_EVENT_BLANK:
 		power_state = (int) (unsigned long) arg;
