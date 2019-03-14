@@ -801,10 +801,20 @@ struct mdp_pcc_coeff {
 	uint32_t c, r, g, b, rr, gg, bb, rg, gb, rb, rgb_0, rgb_1;
 };
 
+struct mdp_pcc_coeff_v1_7 {
+	uint32_t c, r, g, b, rg, gb, rb, rgb;
+};
+
+struct mdp_pcc_data_v1_7 {
+	struct mdp_pcc_coeff_v1_7 r, g, b;
+};
+
 struct mdp_pcc_cfg_data {
+	uint32_t version;
 	uint32_t block;
 	uint32_t ops;
 	struct mdp_pcc_coeff r, g, b;
+	void *cfg_payload;
 };
 
 #define MDP_GAMUT_TABLE_NUM		8
