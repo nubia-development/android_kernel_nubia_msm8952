@@ -1487,7 +1487,7 @@ void get_monotonic_boottime(struct timespec *ts)
 
 	ts->tv_sec += tomono.tv_sec + sleep.tv_sec;
 	ts->tv_nsec = 0;
-	timespec_add_ns(ts, nsec + tomono.tv_nsec + sleep.tv_nsec);
+	timespec_add_ns(ts, (u64)nsec + (u64)tomono.tv_nsec + (u64)sleep.tv_nsec);
 }
 EXPORT_SYMBOL_GPL(get_monotonic_boottime);
 
