@@ -55,7 +55,9 @@
 #include "mdss_mdp_splash_logo.h"
 #define CREATE_TRACE_POINTS
 #include "mdss_debug.h"
-
+#ifdef CONFIG_NUBIA_LCD_BACKLIGHT_CURVE
+#include "mdss_dsi.h"
+#endif
 #ifdef CONFIG_FB_MSM_TRIPLE_BUFFER
 #define MDSS_FB_NUM 3
 #else
@@ -120,6 +122,11 @@ static void mdss_fb_set_bl_brightness(struct led_classdev *led_cdev,
 				      enum led_brightness value)
 {
 	struct msm_fb_data_type *mfd = dev_get_drvdata(led_cdev->dev->parent);
+#ifdef CONFIG_NUBIA_LCD_BACKLIGHT_CURVE
+	struct mdss_panel_data *pdata = dev_get_platdata(&mfd->pdev->dev);
+	struct mdss_dsi_ctrl_pdata *ctrl_pdata = container_of(pdata, struct mdss_dsi_ctrl_pdata,
+				panel_data);
+#endif
 	int bl_lvl;
 
 	if (mfd->boot_notification_led) {
@@ -129,7 +136,11 @@ static void mdss_fb_set_bl_brightness(struct led_classdev *led_cdev,
 
 	if (value > mfd->panel_info->brightness_max)
 		value = mfd->panel_info->brightness_max;
-
+#ifdef CONFIG_NUBIA_LCD_BACKLIGHT_CURVE
+	pr_debug("before nubia transe backlight, value = %d",value);
+	value = ctrl_pdata->backlight_curve[value];
+	pr_debug("after nubia transe backlight, value = %d",value);
+#endif
 	/* This maps android backlight level 0 to 255 into
 	   driver backlight level 0 to bl_max with rounding */
 	MDSS_BRIGHT_TO_BL(bl_lvl, value, mfd->panel_info->bl_max,
@@ -923,6 +934,9 @@ static int mdss_fb_probe(struct platform_device *pdev)
 {
 	struct msm_fb_data_type *mfd = NULL;
 	struct mdss_panel_data *pdata;
+#ifdef CONFIG_NUBIA_LCD_BACKLIGHT_CURVE
+	struct mdss_dsi_ctrl_pdata *ctrl_pdata = NULL;
+#endif
 	struct fb_info *fbi;
 	const char *data;
 	int rc;
@@ -938,6 +952,12 @@ static int mdss_fb_probe(struct platform_device *pdev)
 	of_property_read_u32(pdev->dev.of_node, "cell-index", &cell_index);
 	if (cell_index > fbi_list_index)
 		return -EPROBE_DEFER;
+#ifdef CONFIG_NUBIA_LCD_BACKLIGHT_CURVE
+	ctrl_pdata = container_of(pdata, struct mdss_dsi_ctrl_pdata,
+                               panel_data);
+	if (!ctrl_pdata)
+                return -EPROBE_DEFER;
+#endif
 
 
 	/*
@@ -960,6 +980,11 @@ static int mdss_fb_probe(struct platform_device *pdev)
 	mfd->mdp_fb_page_protection = MDP_FB_PAGE_PROTECTION_WRITECOMBINE;
 
 	mfd->ext_ad_ctrl = -1;
+#ifdef CONFIG_NUBIA_LCD_BACKLIGHT_CURVE
+	pr_debug("nubia before transe backlight mfd->bl_level = %d",mfd->bl_level);
+	mfd->bl_level = ctrl_pdata->backlight_curve[mfd->bl_level];
+	pr_debug("nubia after transe backlight ,mfd->bl_level = %d",mfd->bl_level);
+#endif
 	if (mfd->panel_info && mfd->panel_info->brightness_max > 0)
 		MDSS_BRIGHT_TO_BL(mfd->bl_level,
 			backlight_led.brightness, mfd->panel_info->bl_max,
