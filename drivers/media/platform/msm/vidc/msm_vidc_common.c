@@ -1142,10 +1142,6 @@ static void handle_session_flush(enum command_response cmd, void *data)
 {
 	struct msm_vidc_cb_cmd_done *response = data;
 	struct msm_vidc_inst *inst;
-	struct v4l2_event flush_event = {0};
-	u32 *ptr = NULL;
-	enum hal_flush flush_type;
-	struct vidc_hal_session_flush_done *sesion_flush_done;
 	int rc;
 	if (response) {
 		inst = (struct msm_vidc_inst *)response->session_id;
@@ -1161,31 +1157,7 @@ static void handle_session_flush(enum command_response cmd, void *data)
 				}
 			}
 		}
-        	flush_event.type = V4L2_EVENT_MSM_VIDC_FLUSH_DONE;
-	        ptr = (u32 *)flush_event.u.data;
-
-        	sesion_flush_done = response->data;
-                flush_type = sesion_flush_done->flush_type;
-	        switch (flush_type) {
-        	case HAL_FLUSH_INPUT:
-                	ptr[0] = V4L2_QCOM_CMD_FLUSH_OUTPUT;
-                	break;
-	        case HAL_FLUSH_OUTPUT:
-        	        ptr[0] = V4L2_QCOM_CMD_FLUSH_CAPTURE;
-                	break;
-	        case HAL_FLUSH_ALL:
-        	        ptr[0] |= V4L2_QCOM_CMD_FLUSH_CAPTURE;
-                	ptr[0] |= V4L2_QCOM_CMD_FLUSH_OUTPUT;
-	                break;
-        	default:
-                	dprintk(VIDC_ERR, "Invalid flush type received!");
-	                return;
-        	}
-
-	        dprintk(VIDC_DBG,
-        	        "Notify flush complete, flush_type: %x\n", flush_type);
-        	v4l2_event_queue_fh(&inst->event_handler, &flush_event);
-
+		msm_vidc_queue_v4l2_event(inst, V4L2_EVENT_MSM_VIDC_FLUSH_DONE);
 	} else {
 		dprintk(VIDC_ERR, "Failed to get valid response for flush\n");
 	}
@@ -2418,7 +2390,7 @@ static int msm_vidc_load_resources(int flipped_state,
 {
 	int rc = 0;
 	struct hfi_device *hdev;
-	int num_mbs_per_sec = 0, max_load_adj = 0;
+	int num_mbs_per_sec = 0;
 	struct msm_vidc_core *core;
 	enum load_calc_quirks quirks = LOAD_CALC_IGNORE_TURBO_LOAD |
 		LOAD_CALC_IGNORE_THUMBNAIL_LOAD |
@@ -2446,11 +2418,9 @@ static int msm_vidc_load_resources(int flipped_state,
 		msm_comm_get_load(core, MSM_VIDC_DECODER, quirks) +
 		msm_comm_get_load(core, MSM_VIDC_ENCODER, quirks);
 
-	max_load_adj = core->resources.max_load + inst->capability.mbs_per_frame.max;
-
-	if (num_mbs_per_sec > max_load_adj) {
+	if (num_mbs_per_sec > core->resources.max_load) {
 		dprintk(VIDC_ERR, "HW is overloaded, needed: %d max: %d\n",
-			num_mbs_per_sec, max_load_adj);
+			num_mbs_per_sec, core->resources.max_load);
 		msm_vidc_print_running_insts(core);
 		inst->state = MSM_VIDC_CORE_INVALID;
 		msm_comm_kill_session(inst);
@@ -4237,22 +4207,21 @@ int msm_vidc_trigger_ssr(struct msm_vidc_core *core,
 
 static int msm_vidc_load_supported(struct msm_vidc_inst *inst)
 {
-	int num_mbs_per_sec = 0, max_load_adj = 0;
+	int num_mbs_per_sec = 0;
 	enum load_calc_quirks quirks = LOAD_CALC_IGNORE_TURBO_LOAD |
 		LOAD_CALC_IGNORE_THUMBNAIL_LOAD |
 		LOAD_CALC_IGNORE_NON_REALTIME_LOAD;
 
 	if (inst->state == MSM_VIDC_OPEN_DONE) {
-		max_load_adj = inst->core->resources.max_load + inst->capability.mbs_per_frame.max;
 		num_mbs_per_sec = msm_comm_get_load(inst->core,
 					MSM_VIDC_DECODER, quirks);
 		num_mbs_per_sec += msm_comm_get_load(inst->core,
 					MSM_VIDC_ENCODER, quirks);
-		if (num_mbs_per_sec > max_load_adj) {
+		if (num_mbs_per_sec > inst->core->resources.max_load) {
 			dprintk(VIDC_ERR,
 				"H/W is overloaded. needed: %d max: %d\n",
 				num_mbs_per_sec,
-				max_load_adj);
+				inst->core->resources.max_load);
 			msm_vidc_print_running_insts(inst->core);
 			return -EBUSY;
 		}
