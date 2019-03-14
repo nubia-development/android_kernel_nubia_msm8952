@@ -53,6 +53,10 @@ static DEFINE_SPINLOCK(freezer_delta_lock);
 static struct wakeup_source *ws;
 static struct delayed_work work;
 static struct workqueue_struct *power_off_alarm_workqueue;
+#ifdef CONFIG_ZTEMT_PON_ALARM_DELTA
+static unsigned long power_on_alarm;
+#define ALARM_DELTA 60
+#endif
 
 #ifdef CONFIG_RTC_CLASS
 /* rtc timer and device for setting alarm wakeups at suspend */
@@ -61,6 +65,40 @@ static struct rtc_device	*rtcdev;
 static DEFINE_SPINLOCK(rtcdev_lock);
 static struct mutex power_on_alarm_lock;
 struct alarm init_alarm;
+
+#ifdef CONFIG_ZTEMT_FEATURE_POWER_OFF_CHARGE_MODE_ALARM
+#include <linux/reboot.h>
+
+static struct work_struct charger_mode_restart_work;
+static bool poweroff_charge_mode = false;
+
+static int get_poweroff_charge_mode(char *options)
+{
+	if(strncmp(options,"charger",strlen("charger"))==0){
+		printk(KERN_ERR"Charger mode!!!");
+		poweroff_charge_mode = true;
+	}
+
+	return 1;
+}
+__setup("androidboot.mode=",get_poweroff_charge_mode);
+
+static void charger_mode_restart_work_func(struct work_struct *work)
+{
+	kernel_restart("rtc");
+}
+
+static enum alarmtimer_restart init_alarm_handle(struct alarm *alarm,ktime_t now)
+{
+	if(poweroff_charge_mode){
+		printk(KERN_ERR"Will reboot for poweroff alarm!!!!");
+		INIT_WORK(&charger_mode_restart_work,charger_mode_restart_work_func);
+		schedule_work(&charger_mode_restart_work);
+	}
+
+	return ALARMTIMER_NORESTART;
+}
+#endif
 
 /**
  * power_on_alarm_init - Init power on alarm value
@@ -74,8 +112,9 @@ void power_on_alarm_init(void)
 	struct rtc_time rt;
 	unsigned long alarm_time;
 	struct rtc_device *rtc;
+#ifndef  CONFIG_ZTEMT_PON_ALARM_DELTA
 	ktime_t alarm_ktime;
-
+#endif
 	rtc = alarmtimer_get_rtcdev();
 
 	if (!rtc)
@@ -85,12 +124,24 @@ void power_on_alarm_init(void)
 	rt = rtc_alarm.time;
 
 	rtc_tm_to_time(&rt, &alarm_time);
-
+#ifndef  CONFIG_ZTEMT_PON_ALARM_DELTA
 	if (alarm_time) {
 		alarm_ktime = ktime_set(alarm_time, 0);
+#ifdef CONFIG_ZTEMT_FEATURE_POWER_OFF_CHARGE_MODE_ALARM
+		alarm_init(&init_alarm, ALARM_POWEROFF_REALTIME, init_alarm_handle);
+#else
 		alarm_init(&init_alarm, ALARM_POWEROFF_REALTIME, NULL);
+#endif
 		alarm_start(&init_alarm, alarm_ktime);
 	}
+#endif
+
+#ifdef	CONFIG_ZTEMT_PON_ALARM_DELTA
+	if (alarm_time)
+		power_on_alarm = alarm_time;
+	else
+		power_on_alarm = 0;
+#endif
 }
 
 /**
@@ -147,6 +198,13 @@ void set_power_on_alarm(void)
 	alarm_delta = wall_time.tv_sec - rtc_secs;
 	alarm_time = alarm_secs - alarm_delta;
 
+#ifdef CONFIG_ZTEMT_FEATURE_POWER_OFF_ALARM_ADVANCE_BOOT_TIME
+	alarm_time = alarm_time - CONFIG_ZTEMT_FEATURE_POWER_OFF_ALARM_ADVANCE_BOOT_TIME;
+	if(alarm_time <= rtc_secs){
+		printk(KERN_ERR"%s:invalid alarm,will disable this alarm!\n",__func__);
+		goto disable_alarm;
+	}
+#endif
 	rtc_time_to_tm(alarm_time, &alarm.time);
 	alarm.enabled = 1;
 	rc = rtc_set_alarm(rtcdev, &alarm);
@@ -161,6 +219,64 @@ disable_alarm:
 exit:
 	mutex_unlock(&power_on_alarm_lock);
 }
+#ifdef CONFIG_ZTEMT_PON_ALARM_DELTA
+void set_power_off_alarm(long secs, bool enable)
+{
+	int rc;
+	struct timespec wall_time;
+	long rtc_secs, alarm_time, alarm_delta;
+	struct rtc_time rtc_time;
+	struct rtc_wkalrm alarm;
+
+	rc = mutex_lock_interruptible(&power_on_alarm_lock);
+	if (rc != 0)
+		return;
+
+	if (enable) {
+			power_on_alarm = secs;
+	} else {
+		if (power_on_alarm == secs)
+			power_on_alarm = 0;
+		else
+			goto exit;
+	}
+
+	if (!power_on_alarm)
+		goto disable_alarm;
+
+	rtc_read_time(rtcdev, &rtc_time);
+	getnstimeofday(&wall_time);
+	rtc_tm_to_time(&rtc_time, &rtc_secs);
+	alarm_delta = wall_time.tv_sec - rtc_secs;
+	alarm_time = power_on_alarm - alarm_delta;
+
+	/*
+	 *Substract ALARM_DELTA from actual alarm time
+	 *to power up the device before actual alarm
+	 *expiration
+	 */
+       if ((alarm_time - ALARM_DELTA) > rtc_secs)
+               alarm_time -= ALARM_DELTA;
+       else
+               goto disable_alarm;
+
+
+	rtc_time_to_tm(alarm_time, &alarm.time);
+	alarm.enabled = 1;
+	rc = rtc_set_alarm(rtcdev, &alarm);
+	if (rc)
+		goto disable_alarm;
+
+	mutex_unlock(&power_on_alarm_lock);
+	return;
+
+disable_alarm:
+	power_on_alarm = 0;
+	rtc_alarm_irq_enable(rtcdev, 0);
+exit:
+	mutex_unlock(&power_on_alarm_lock);
+}
+#endif
 
 static void alarmtimer_triggered_func(void *p)
 {
@@ -491,7 +607,9 @@ static int alarmtimer_resume(struct device *dev)
 	if (!rtc)
 		return 0;
 	rtc_timer_cancel(rtc, &rtctimer);
-
+#ifdef CONFIG_ZTEMT_PON_ALARM_DELTA
+	set_power_off_alarm(power_on_alarm , 1);
+#endif
 	queue_delayed_work(power_off_alarm_workqueue, &work, 0);
 	return 0;
 }
@@ -568,6 +686,7 @@ int alarm_start(struct alarm *alarm, ktime_t start)
  */
 int alarm_start_relative(struct alarm *alarm, ktime_t start)
 {
+#ifdef  CONFIG_ZTEMT_PON_ALARM_DELTA
 	struct alarm_base *base;
 
 	if (alarm->type >= ALARM_NUMTYPE) {
@@ -575,6 +694,10 @@ int alarm_start_relative(struct alarm *alarm, ktime_t start)
 		return -EINVAL;
 	}
 	base = &alarm_bases[alarm->type];
+
+#else
+	struct alarm_base *base = &alarm_bases[alarm->type];
+#endif
 	start = ktime_add(start, base->gettime());
 	return alarm_start(alarm, start);
 }
@@ -600,6 +723,7 @@ void alarm_restart(struct alarm *alarm)
  */
 int alarm_try_to_cancel(struct alarm *alarm)
 {
+#ifdef  CONFIG_ZTEMT_PON_ALARM_DELTA
 	struct alarm_base *base;
 	unsigned long flags;
 	int ret;
@@ -609,6 +733,11 @@ int alarm_try_to_cancel(struct alarm *alarm)
 		return -EINVAL;
 	}
 	base = &alarm_bases[alarm->type];
+#else
+	struct alarm_base *base = &alarm_bases[alarm->type];
+	unsigned long flags;
+	int ret;
+#endif
 	spin_lock_irqsave(&base->lock, flags);
 	ret = hrtimer_try_to_cancel(&alarm->timer);
 	if (ret >= 0)
