@@ -241,7 +241,6 @@ static int fw_lookup_and_allocate_buf(const char *fw_name,
 	return tmp ? 0 : -ENOMEM;
 }
 
-#ifdef CONFIG_FW_CACHE
 static struct firmware_buf *fw_lookup_buf(const char *fw_name)
 {
 	struct firmware_buf *tmp;
@@ -253,7 +252,6 @@ static struct firmware_buf *fw_lookup_buf(const char *fw_name)
 
 	return tmp;
 }
-#endif
 
 static void __fw_free_buf(struct kref *ref)
 {
@@ -1490,9 +1488,6 @@ request_firmware_nowait_direct(
 					map_data);
 }
 
-#ifdef CONFIG_FW_CACHE
-static ASYNC_DOMAIN_EXCLUSIVE(fw_cache_domain);
-
 /**
  * cache_firmware - cache one firmware image in kernel memory space
  * @fw_name: the firmware image name
@@ -1552,6 +1547,9 @@ int uncache_firmware(const char *fw_name)
 
 	return -EINVAL;
 }
+
+#ifdef CONFIG_PM_SLEEP
+static ASYNC_DOMAIN_EXCLUSIVE(fw_cache_domain);
 
 static struct fw_cache_entry *alloc_fw_cache_entry(const char *name)
 {
@@ -1816,7 +1814,7 @@ static void __init fw_cache_init(void)
 	INIT_LIST_HEAD(&fw_cache.head);
 	fw_cache.state = FW_LOADER_NO_CACHE;
 
-#ifdef CONFIG_FW_CACHE
+#ifdef CONFIG_PM_SLEEP
 	spin_lock_init(&fw_cache.name_lock);
 	INIT_LIST_HEAD(&fw_cache.fw_names);
 
@@ -1843,7 +1841,7 @@ static int __init firmware_class_init(void)
 
 static void __exit firmware_class_exit(void)
 {
-#ifdef CONFIG_FW_CACHE
+#ifdef CONFIG_PM_SLEEP
 	unregister_syscore_ops(&fw_syscore_ops);
 	unregister_pm_notifier(&fw_cache.pm_notify);
 #endif
