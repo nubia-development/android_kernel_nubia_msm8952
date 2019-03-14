@@ -148,5 +148,20 @@ obj-$(CONFIG_SENSORS_BOOST_DYNAMIC_CONTROLLER)	+= boost-dynamic-controller.o
 
 obj-$(CONFIG_PMBUS)		+= pmbus/
 
+################################################# HALL_DEVICE START
+obj-$(CONFIG_ZTEMT_SENSORS_HALL_DEVICE_SIGNLE_OUT)  += hall_signle_out.o
+obj-$(CONFIG_ZTEMT_SENSORS_HALL_DEVICE_PAIR_OUT)  	+= hall_pair_out.o
+################################################# HALL_DEVICE END
+
+################################################# FINGERPRINT_DEVICE START
+obj-$(CONFIG_ZTEMT_SENSORS_FP_GF318M)	+= gf318m_platform/
+################################################# FINGERPRINT_DEVICE END
+
+################################################# ALS_PS START
+obj-$(CONFIG_ZTEMT_SENSORS_ALS_PS_TMD2772) += tmd2772.o
+obj-$(CONFIG_ZTEMT_SENSORS_PROX_PA224)			+= txc_pa224.o
+obj-$(CONFIG_ZTEMT_SENSORS_RGB_BH1745)			+= rohm_bh1745.o
+################################################# ALS_PS END
+
 ccflags-$(CONFIG_HWMON_DEBUG_CHIP) := -DDEBUG
 

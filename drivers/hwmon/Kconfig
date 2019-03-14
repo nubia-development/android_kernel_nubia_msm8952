@@ -1605,4 +1605,89 @@ config SENSORS_ATK0110
 
 endif # ACPI
 
+################################################# SENROS START
+menuconfig ZTEMT_SENSORS
+	tristate "ZTEMT ZTEMT_SENSORS"
+	default n
+
+if ZTEMT_SENSORS
+
+	config FEATURE_ZTEMT_SENSORS_LOG_ON
+	tristate "ZTEMT SENSORS LOG ON"
+	depends on ZTEMT_SENSORS
+	default n
+	help
+		If you want to enable the sensor log,
+		then choose this config
+################################################# HALL_DEVICE START
+menuconfig ZTEMT_SENSORS_HALL_DEVICE
+	tristate "ZTEMT HALL DEVICE"
+	default n
+
+if ZTEMT_SENSORS_HALL_DEVICE
+
+config ZTEMT_SENSORS_HALL_DEVICE_SIGNLE_OUT
+	tristate "signle out hell device driver"
+	depends on ZTEMT_SENSORS_HALL_DEVICE
+	help
+	  If you say yes here you get support for zte's
+	  signle out hell device
+
+config ZTEMT_SENSORS_HALL_DEVICE_PAIR_OUT
+	tristate "pair out hell device driver"
+	depends on ZTEMT_SENSORS_HALL_DEVICE
+	help
+	  If you say yes here you get support for zte's
+	  pair out hell device
+endif
+################################################# HALL_DEVICE END
+
+################################################# FINGER_PRINTER START
+menuconfig ZTEMT_SENSORS_FP
+	tristate "ZTEMT FP DEVICE"
+	default n
+
+if ZTEMT_SENSORS_FP
+
+source drivers/hwmon/gf318m_platform/Kconfig
+
+endif
+################################################# FINGER_PRINTER END
+
+################################################# ALS_PS START
+menuconfig ZTEMT_SENSORS_ALS_PS
+	tristate "ZTEMT ALS and PS"
+	default n
+
+if ZTEMT_SENSORS_ALS_PS
+
+config ZTEMT_SENSORS_ALS_PS_AUTO_DETECT
+	tristate "ALS_PS_SENSOR auto detect"
+	depends on ZTEMT_SENSORS_ALS_PS
+	help
+	  If you say yes here,the ALS_PS_SENSOR is auto detect
+
+config ZTEMT_SENSORS_ALS_PS_TMD2772
+	tristate "TMD2772 device driver"
+	depends on ZTEMT_SENSORS_ALS_PS
+	help
+	  If you say yes here you get support for AMS's
+	  als ps TMD2772
+
+config ZTEMT_SENSORS_PROX_PA224
+	tristate "support litehole prox sensor driver"
+	help
+		nubia prox device
+
+config ZTEMT_SENSORS_RGB_BH1745
+	tristate "support rgb bh1745 driver"
+	help
+		nubia rgb device
+
+endif
+################################################# ALS_PS END
+
+endif
+################################################# SENROS END
+
 endif # HWMON
