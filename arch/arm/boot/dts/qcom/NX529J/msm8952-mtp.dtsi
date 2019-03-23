@@ -17,7 +17,6 @@
 #include "nubia_ktd2037_breathled.dtsi"
 #include "nubia_aw2013_breathlight.dtsi"
 #include "msm8952-mtp-usb-typec.dtsi"
-#include "msm8952-system-mount.dtsi"
 
 &i2c_3 { /* BLSP1 QUP3 */
 		gt1x@5d {
