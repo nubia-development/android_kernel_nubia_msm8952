@@ -4473,12 +4473,8 @@ static int smbchg_change_usb_supply_type(struct smbchg_chip *chip,
 		goto out;
 	}
 
-	if (!chip->skip_usb_notification) {
-		propval.intval = type;
-		chip->usb_psy->set_property(chip->usb_psy,
-				POWER_SUPPLY_PROP_REAL_TYPE,
-				&propval);
-	}
+	if (!chip->skip_usb_notification)
+                power_supply_set_supply_type(chip->usb_psy, type);
 	
 	#ifdef CONFIG_ZTEMT_COMMON_CHARGER
 	if (type == POWER_SUPPLY_TYPE_USB)
